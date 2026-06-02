@@ -1,0 +1,6 @@
+openai
+python-dotenv
+opencv-python-headless
+numpy
+yt-dlp[default]
+requests
