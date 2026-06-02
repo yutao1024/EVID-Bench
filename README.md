@@ -178,8 +178,8 @@ python -m src.cli data/EVID-Bench/Edit.json \
   --trace-jsonl struct/run_trace.jsonl \
   --no-resume \
   --skip-summary \
-  --judge-models "gpt-5.5,gemini-3.1-pro-preview,claude-sonnet-4.6" \
-  --reasoning-model google/gemini-2.5-pro
+  --judge-models "gpt-5.4,gemini-3.1-pro-preview,claude-sonnet-4.6" \
+  --reasoning-model gpt-5.5
 ```
 
 Change `data/EVID-Bench/` and `NX7QNWEGcNI` to your local folder and sample ID.
