@@ -1,14 +1,12 @@
 """Oracle-eval helpers: load truth IDs / GT 3-5 point lists from Edit-style manifests.
 
-Manifest entry schema (Edit.json / example.json):
+Manifest entry schema (Edit.json):
     {
-      "id":        "<youtube id of the forged video>",
-      "topic":     "...",
-      "task":      "2.1" | "2.2" | "2.3" | "3.1" | "3.2" | "3.3",
-      "video2":    "<source youtube id>" | "",   # task 3.x has at least one
-      "video3":    "<source youtube id>" | "",   # task 3.x sometimes has two
-      "videoN":    ...                            # forward-compat: any videoN
-      "groundtruth": ["GT point text", ...]      # optional, may be missing
+      "id":          "<youtube id of the forged video>",
+      "source":      ["<original youtube id>", ...],
+      "topic":       "Sports" | "Daily life" | ...,
+      "task":        {"category": "...", "type": "..."},
+      "groundtruth": ["GT point text", ...]              # optional
     }
 """
 
@@ -21,8 +19,19 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 
-_VIDEO_FIELD_RE = re.compile(r"^video\d+$")
 _YOUTUBE_ID_RE = re.compile(r"(?:v=|youtu\.be/|/shorts/|/embed/)([A-Za-z0-9_-]{8,})")
+
+
+def format_task_label(entry: dict[str, Any]) -> str:
+    """Human-readable task label from manifest ``task``."""
+    task = entry.get("task")
+    if not isinstance(task, dict):
+        return ""
+    category = str(task.get("category") or "").strip()
+    subtype = str(task.get("type") or "").strip()
+    if category and subtype:
+        return f"{category} / {subtype}"
+    return category or subtype
 
 
 def extract_youtube_id(url: str) -> str | None:
@@ -48,21 +57,13 @@ def extract_youtube_id(url: str) -> str | None:
 
 
 def _expected_ids_from_entry(entry: dict[str, Any]) -> list[str]:
-    """Pull all source-truth YouTube ids out of an Edit-style manifest entry.
-
-    Rules:
-    - For task 2.x (single source): the source IS the forged id itself (`entry["id"]`).
-    - For task 3.x (multi source):  `video2`, `video3`, ... videoN.
-    - Order preserved (id first, then video2, video3, ...).
-    """
+    """Pull expected original-source YouTube ids from manifest ``source``."""
+    raw = entry.get("source")
+    if not isinstance(raw, list):
+        return []
     ids: list[str] = []
-    primary = str(entry.get("id") or "").strip()
-    if primary:
-        ids.append(primary)
-    for key in entry.keys():
-        if not _VIDEO_FIELD_RE.match(key):
-            continue
-        val = str(entry.get(key) or "").strip()
+    for item in raw:
+        val = str(item or "").strip()
         if val and val not in ids:
             ids.append(val)
     return ids
@@ -71,7 +72,7 @@ def _expected_ids_from_entry(entry: dict[str, Any]) -> list[str]:
 def load_oracle_map(manifest_path: str | Path | None) -> dict[str, list[str]]:
     """Return {forged_video_id: [expected source youtube ids]}.
 
-    Accepts any number of `videoN` columns. Missing manifest returns {}.
+    Missing manifest returns {}.
     """
     if not manifest_path:
         return {}

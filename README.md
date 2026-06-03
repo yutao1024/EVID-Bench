@@ -14,9 +14,12 @@
 
 ## 📑 Table of Contents
 
+<div align="center">
 
+[🔥 News](#-news) · [🌈 Overview](#-overview) · [🤗 Dataset](#-dataset) · [🚀 Quick Start](#-quick-start)  
+[🧪 Run](#-run-evid-bench) · [📦 Outputs](#-outputs) · [🛠 Troubleshooting](#-troubleshooting) · [📖 Citation](#-citation)
 
-[🔥 News](#-news) | [🌈 Overview](#-overview) | [🤗 Dataset](#-dataset) | [🚀 Quick Start](#-quick-start) | [🧪 Run EVID-Bench](#-run-evid-bench) | [📦 Outputs](#-outputs) | [🛠 Troubleshooting](#-troubleshooting) | [📖 Citation](#-citation)
+</div>
 
 
 
@@ -58,12 +61,12 @@ Input video
 
 Download from Hugging Face: [EVID-Bench Dataset](https://huggingface.co/datasets/Kirito-Lab/EVID-Bench/).
 
-Put the manifest and forged videos in **one folder** (name it however you like). The CLI accepts either that folder or the manifest file directly:
+Put the manifest and forged videos in **one folder**. The folder name is flexible, but the manifest and videos must live next to each other because the CLI finds videos by joining the folder path with `<id>.mp4`.
 
 ```text
 data/EVID-Bench/              # example local root
 ├── Edit.json                 # default manifest name (or any *.json path)
-├── NX7QNWEGcNI.mp4           # forged video; filename stem = video ID in the manifest
+├── <forged_video_id>.mp4     # filename stem must match manifest id
 └── ...
 ```
 
@@ -71,24 +74,58 @@ Manifest format: a JSON **array** of entries. Minimal fields:
 
 ```json
 {
-  "id": "NX7QNWEGcNI",
-  "task": "2.1",
-  "topic": "sports",
-  "video2": "SOURCE_VIDEO_ID",
-  "video3": "",
-  "groundtruth": ["First manipulated point.", "Second manipulated point."]
+  "id": "<forged_video_id>",
+  "source": ["<source_youtube_id>", "..."],
+  "task": {
+    "category": "<manipulation_category>",
+    "type": "<manipulation_type>"
+  },
+  "topic": "<topic_category>",
+  "groundtruth": ["<forgery_point>", "..."]
 }
 ```
 
-- **`id`**: forged video ID; must match the `.mp4` basename in the same folder (here `NX7QNWEGcNI.mp4`).
-- **`video2` / `video3`** (and other `videoN`): expected source YouTube IDs for retrieval evaluation.
+- **`id`**: forged (manipulated) video ID; must match the `.mp4` basename in the same folder (`<forged_video_id>.mp4`).
+- **`source`**: YouTube IDs of the original footage used to construct the forgery (one ID for single-source tasks; two or more for multi-source tasks).
+- **`task`**: `category` is one of **AI Generation**, **Single-Source Editing**, **Multi-Source Editing**; `type` is one of the nine subtypes below.
+- **`topic`**: content domain — **Daily life**, **Education & skills**, **On-Scene footage**, **Sports**, **Performance & talent**, or **Reviews**.
 - **`groundtruth`**: forgery points as a string list.
+
+| Category | `type` values |
+| --- | --- |
+| AI Generation | identity swap · synthetic insertion · object manipulation |
+| Single-Source Editing | selective omission · causal inversion · manipulative montage |
+| Multi-Source Editing | narrative fabrication · magnitude manipulation · contextual fabrication |
+
+### Download & Run Evaluation Only
+
+If you only want to **run the released benchmark** (not build new data), download from Hugging Face, unzip, and keep this layout:
+
+```text
+data/EVID-Bench/
+├── Edit.json
+├── <forged_video_id>.mp4
+└── ...
+```
+
+Configure [`.env`](#configuration), then evaluate one sample or the full manifest:
+
+```bash
+# One sample (recommended first)
+python -m src.cli data/EVID-Bench/ --only-ids <forged_video_id> --num-workers 1
+
+# Full benchmark folder
+python -m src.cli data/EVID-Bench/
+```
+
+Add `--search-only` to test search recall against `source` without downloading candidates. Add `--skip-judge` when `groundtruth` is empty or you only need retrieval traces.
 
 ## 🚀 Quick Start
 
 These steps assume a fresh machine and are intentionally explicit.
 
 - [Prerequisites](#prerequisites)
+- [Environment Check](#environment-check)
 - [Installation](#installation)
 - [Configuration](#configuration)
 
@@ -96,24 +133,72 @@ These steps assume a fresh machine and are intentionally explicit.
 
 Before installation, install:
 
-- **Python** 3.11+ (Conda recommended)
-- **FFmpeg** and `ffprobe`
-- **Node.js**, Deno, or Bun (for `yt-dlp` YouTube challenge handling)
+- **Python** 3.11+
+- **FFmpeg** and `ffprobe` (frame extraction and video probing)
+- **Node.js** (required by `yt-dlp` for YouTube JavaScript challenges; Deno or Bun also work)
 
-macOS:
+If these tools are missing, or you are on a machine without `sudo`, use one of the install paths below. No root access is required for the local Linux steps.
+
+#### macOS
 
 ```bash
 brew install ffmpeg node
 ```
 
-Ubuntu:
+#### Ubuntu / Debian (with `sudo`)
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y ffmpeg nodejs npm
 ```
 
-If you do not have root access on a server, install `ffmpeg` and Node.js in your home directory and add their `bin` directories to `PATH`.
+#### Install FFmpeg locally (Linux, no `sudo`)
+
+1. Download a static build, for example:
+   ```bash
+   wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+   tar -xf ffmpeg-release-amd64-static.tar.xz
+   ```
+2. Copy binaries into `~/.local/bin`:
+   ```bash
+   mkdir -p ~/.local/bin
+   cp ffmpeg-*-static/ffmpeg ffmpeg-*-static/ffprobe ~/.local/bin/
+   ```
+3. Add to `PATH` and reload your shell:
+   ```bash
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+4. Verify: `ffmpeg -version` and `ffprobe -version`.
+
+#### Install Node.js locally (Linux, no `sudo`)
+
+1. Download a prebuilt binary, for example:
+   ```bash
+   wget https://nodejs.org/dist/v20.11.0/node-v20.11.0-linux-x64.tar.xz
+   tar -xf node-v20.11.0-linux-x64.tar.xz
+   ```
+2. Copy `node` into `~/.local/bin` (create the directory if needed).
+3. Verify: `node --version`.
+
+> **Windows:** install Python, FFmpeg, and Node.js from [python.org](https://www.python.org/), [ffmpeg.org](https://ffmpeg.org/download.html), and [nodejs.org](https://nodejs.org/), then add their `bin` directories to `PATH`.
+
+### Environment Check
+
+Run these commands before installing Python packages. If any command is missing, fix the corresponding dependency first.
+
+```bash
+python --version
+ffmpeg -version
+ffprobe -version
+node --version
+```
+
+Expected results:
+
+- `python --version` should show Python 3.11 or newer.
+- `ffmpeg -version` and `ffprobe -version` should print version information, not `command not found`.
+- `node --version` should print a version such as `v20.x.x`.
 
 ### Installation
 
@@ -124,11 +209,31 @@ git clone https://github.com/yutao1024/EVID-Bench.git
 cd EVID-Bench
 ```
 
-#### 2. Create a Conda environment
+#### 2. Create a Python environment
+
+Use one of the following. All later commands assume the environment is activated.
+
+**Option A: Conda (recommended)**
 
 ```bash
 conda create -n evid-bench python=3.11 -y
 conda activate evid-bench
+```
+
+**Option B: `venv` (Debian/Ubuntu servers)**
+
+```bash
+sudo apt update && sudo apt install -y python3.11 python3.11-venv ffmpeg nodejs npm
+python3.11 -m venv .venv
+source .venv/bin/activate
+```
+
+**Option C: `virtualenv` (fallback)**
+
+```bash
+pip install --user virtualenv
+python -m virtualenv .venv
+source .venv/bin/activate
 ```
 
 #### 3. Install Python dependencies
@@ -138,15 +243,17 @@ pip install -r requirements.txt
 python -m src.cli --help
 ```
 
+If `python -m src.cli --help` prints the command-line options, the package import path and dependencies are working.
+
 ### Configuration
 
-Copy the environment template:
+Copy the environment template from the repository root:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `.env` and fill the required keys:
 
 ```bash
 OPENAI_API_KEY=your_openai_or_openrouter_key
@@ -154,51 +261,105 @@ OPENAI_BASE_URL=https://openrouter.ai/api/v1
 SERPER_KEY=your_serper_key
 ```
 
-Optional YouTube cookies are helpful when `yt-dlp` sees age gates or bot checks:
+- **`OPENAI_API_KEY`** is required. It can be an OpenAI key, an OpenRouter key, or another OpenAI-SDK-compatible gateway key.
+- **`OPENAI_BASE_URL`** is optional. The default example uses OpenRouter. For official OpenAI, use `https://api.openai.com/v1`.
+- **`SERPER_KEY`** is required for Google search through [Serper](https://serper.dev). If this is missing or invalid, retrieval will not find web candidates.
+
+**Model roles (CLI flags, not `.env`):** `--reasoning-model` drives frame analysis, search planning, candidate filtering, and cross-video comparison; `--judge-models` is a comma-separated panel that scores model outputs against `groundtruth`. Use a strong VLM for `--reasoning-model` and your preferred judge models for scoring.
+
+#### How to obtain API keys
+
+| Key / setting | Where to get it | Used for |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | [OpenAI](https://platform.openai.com/), [OpenRouter](https://openrouter.ai/), or another OpenAI-compatible gateway | VLM calls and judge requests |
+| `OPENAI_BASE_URL` | Provider documentation (OpenRouter default in `.env.example`) | API endpoint |
+| `SERPER_KEY` | Sign up at [serper.dev](https://serper.dev) | YouTube/web search during DeepSearch |
+
+Make sure keys are valid and have enough quota before a full-folder run.
+
+#### YouTube cookies (recommended for downloads)
+
+The pipeline downloads candidate videos with `yt-dlp`. Age-restricted or bot-checked videos usually need cookies from a logged-in YouTube session.
+
+1. Log in to YouTube in your browser.
+2. Export Netscape-format `cookies.txt` with an extension such as [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) (Chrome/Edge) or **cookies.txt** (Firefox).
+3. Save the file and set an **absolute path** in `.env`:
 
 ```bash
 YT_DLP_COOKIES_FILE=/absolute/path/to/cookies.txt
 ```
 
-## 🧪 Run EVID-Bench
-
-### Minimal One-Video Run
-
-Use this when the manifest and matching `.mp4` files are in the same folder (example: `data/EVID-Bench/`):
+Alternatively, read cookies directly from a local browser (no file export):
 
 ```bash
-python -m src.cli data/EVID-Bench/Edit.json \
-  --only-ids NX7QNWEGcNI \
+YT_DLP_COOKIES_FROM_BROWSER=chrome
+```
+
+Optional runtime tuning:
+
+```bash
+FRAME_RESIZE_WORKERS=16
+PIPELINE_LOG_DIR=/absolute/path/to/logs
+```
+
+Most users can leave these unset.
+
+## 🧪 Run EVID-Bench
+
+A full run searches the web, downloads candidates, calls VLMs, and optionally scores against `groundtruth`. Work through the profiles below in order; confirm `python -m src.cli --help` works before Profile 1.
+
+Replace `data/EVID-Bench/` and `<forged_video_id>` with your paths. You can pass the data folder (expects `Edit.json` inside) or a direct path to the manifest JSON.
+
+### Recommended Run Profiles
+
+**Profile 1 — Debug / smoke**  
+Search-only: checks whether results hit manifest `source` IDs. No candidate download or visual comparison.
+
+```bash
+python -m src.cli data/EVID-Bench/ \
+  --only-ids <forged_video_id> \
+  --search-only \
+  --num-workers 1
+```
+
+**Profile 2 — Single-video retrieval (no judge)**  
+End-to-end retrieval on one video with lower cost. Inspect `_debug/results.jsonl`, `_debug/run_trace.jsonl`, and `_debug/logs/`.
+
+```bash
+python -m src.cli data/EVID-Bench/ \
+  --only-ids <forged_video_id> \
+  --num-workers 1 \
+  --candidate-video-height 360 \
+  --max-deepsearch-rounds 3 \
+  --total-sample-frames 32 \
+  --save-run-trace \
+  --skip-judge \
+  --output _debug
+```
+
+**Profile 3 — Single-video full evaluation**  
+Default benchmark settings with multi-judge scoring.
+
+```bash
+python -m src.cli data/EVID-Bench/ \
+  --only-ids <forged_video_id> \
   --num-workers 1 \
   --candidate-video-height 480 \
   --max-deepsearch-rounds 6 \
   --total-sample-frames 64 \
   --save-run-trace \
-  --results-jsonl struct/results.jsonl \
-  --trace-jsonl struct/run_trace.jsonl \
-  --no-resume \
-  --skip-summary \
-  --judge-models "gpt-5.4,gemini-3.1-pro-preview,claude-sonnet-4.6" \
-  --reasoning-model gpt-5.5
+  --reasoning-model google/gemini-2.5-pro \
+  --judge-models "gpt-5.5,gemini-3.1-pro-preview,claude-sonnet-4.6"
 ```
 
-Change `data/EVID-Bench/` and `NX7QNWEGcNI` to your local folder and sample ID.
-
-### Folder Run
-
-If the folder already contains `Edit.json` (default manifest name) and `<id>.mp4` files:
+**Profile 4 — Full folder**  
+Run the whole manifest after Profile 3 succeeds. Use `--limit 5` for a small batch first.
 
 ```bash
-python -m src.cli data/EVID-Bench/
+python -m src.cli data/EVID-Bench/ --num-workers 1
 ```
 
-### Search-Only Retrieval Check
-
-This mode does not download candidates or run visual comparison. It only checks whether search results hit expected source IDs from the manifest.
-
-```bash
-python -m src.cli data/EVID-Bench/ --search-only
-```
+Increase `--num-workers` only after sequential runs are stable.
 
 ### Common Arguments
 
@@ -217,9 +378,9 @@ python -m src.cli data/EVID-Bench/ --search-only
 | `--candidate-sample-frames`           | same as total                                      | Candidate frames for fine extraction.                                                 |
 | `--max-deepsearch-rounds`             | `6`                                                | Maximum DeepSearch search rounds.                                                     |
 | `--max-reflect-rounds`                | `3`                                                | Maximum reflection rounds after search failure.                                       |
-| `--reasoning-model`                   | `google/gemini-2.5-pro`                            | VLM used for Stage A reasoning and comparison.                                        |
-| `--judge-models`                      | `gpt-5.5,gemini-3.1-pro-preview,claude-sonnet-4.6` | Comma-separated Stage C judge panel.                                                  |
-| `--judge-model`                       | unset                                              | Legacy single-judge override.                                                         |
+| `--reasoning-model`                   | `google/gemini-2.5-pro`                            | VLM used for reasoning and cross-video comparison.                                  |
+| `--judge-models`                      | `gpt-5.5,gemini-3.1-pro-preview,claude-sonnet-4.6` | Comma-separated judge models for ground-truth scoring.                              |
+| `--judge-model`                       | unset                                              | Single-judge override.                                                                |
 | `--save-run-trace`                    | off                                                | Write structured trace rows.                                                          |
 | `--results-jsonl`                     | `results.jsonl`                                    | Results JSONL path, relative paths resolved under output dir.                         |
 | `--trace-jsonl`                       | `run_trace.jsonl`                                  | Trace JSONL path, relative paths resolved under output dir.                           |
@@ -231,7 +392,7 @@ python -m src.cli data/EVID-Bench/ --search-only
 
 ## 📦 Outputs
 
-For a manifest run such as `data/EVID-Bench/Edit.json`, outputs are written next to the manifest:
+For a manifest run such as `data/EVID-Bench/Edit.json`, outputs are written next to the manifest. The default `--output _results` is expanded to a timestamped directory so that separate runs do not overwrite each other:
 
 ```text
 data/EVID-Bench/
@@ -244,6 +405,47 @@ data/EVID-Bench/
         └── run_<timestamp>_<video_id>.log
 ```
 
+What each file is for:
+
+- **`results.jsonl`**: one JSON record per processed video. This is the main machine-readable result file. It includes the video ID, task/topic metadata, retrieval hits, collected evidence, judge overview, token usage, and errors if any.
+- **`run_trace.jsonl`**: written only with `--save-run-trace`. Use it to debug search behavior: generated queries, candidate URLs, candidate titles, filtering decisions, and round-by-round stopping reasons.
+- **`summary.json`**: aggregate metrics in JSON format, useful for scripts or spreadsheets.
+- **`summary.md`**: human-readable aggregate summary, useful for quick inspection.
+- **`logs/run_<timestamp>_<video_id>.log`**: per-video console log. Open this first when a specific sample fails.
+
+### Result fields
+
+**`results.jsonl` (one JSON object per line, per video)**
+
+| Field | Meaning |
+| --- | --- |
+| `video_id` | Forged video ID from the manifest |
+| `task`, `topic` | Labels from the manifest entry |
+| `retrieval.truth_hit` | Whether any expected `source` ID was retrieved |
+| `retrieval.retrieved_truth_ids` | Subset of `source` IDs found during search/download |
+| `retrieval.expected_source_ids` | Oracle IDs from manifest `source` |
+| `retrieval.matched_urls` | Candidate URLs kept after filtering |
+| `deepsearch.collected_forgery_points` | Forgery points extracted during retrieval |
+| `judge_overview.score` | Point-level judge score for this video (if judging ran) |
+| `judge_overview.passed_gt_count` / `n_gt` | How many ground-truth points passed vs total |
+| `ground_truth` | Manifest `groundtruth` copied into the record |
+| `tokens` | Prompt/completion token usage (total and by model/stage) |
+| `error` | Present if the run failed or was interrupted |
+
+**`summary.json` / `summary.md` (aggregate over the run)**
+
+| Field | Meaning |
+| --- | --- |
+| `n_videos` | Number of videos processed in this run |
+| `n_judged` | Videos with ground-truth judging completed |
+| `retrieval.retrieval_rate` | Share of videos with at least one `source` hit |
+| `retrieval.per_task_breakdown` | Retrieval rate grouped by task label |
+| `scoring.accuracy` | Point-level accuracy over all judged GT points |
+| `scoring.hit_points` / `total_points` | Passed GT points vs total GT points |
+| `scoring.per_task_breakdown` | Accuracy grouped by task label |
+| `tokens.by_model` / `tokens.by_stage` | Token totals by model and by retrieval vs judge |
+| `per_video` | Compact per-video table (truth hit, score, matched URLs) |
+
 Frame caches are stored under the repository root:
 
 ```text
@@ -252,7 +454,39 @@ Frame caches are stored under the repository root:
 └── candidate/<candidate_id>_h<height>_n<num_frames>/
 ```
 
-These cache and result directories are ignored by git.
+The cache avoids re-sampling the same frames on repeated runs. It is safe to delete `.frame_cache/` when you want to free disk space or force fresh frame extraction.
+
+### Resume and Rerun
+
+By default, EVID-Bench resumes from existing rows in `results.jsonl`:
+
+```bash
+python -m src.cli data/EVID-Bench/ --output _results_20260603_101500
+```
+
+If that output directory already contains a result for a video ID, the run skips that video. This is useful after an interrupted long run.
+
+Use `--no-resume` when you want to force a fresh run:
+
+```bash
+python -m src.cli data/EVID-Bench/ \
+  --only-ids <forged_video_id> \
+  --output _rerun \
+  --no-resume
+```
+
+Use explicit JSONL paths when you want stable filenames inside an output directory:
+
+```bash
+python -m src.cli data/EVID-Bench/ \
+  --only-ids <forged_video_id> \
+  --output _debug \
+  --results-jsonl results.jsonl \
+  --trace-jsonl run_trace.jsonl \
+  --save-run-trace
+```
+
+Relative `--results-jsonl` and `--trace-jsonl` paths are resolved under `--output`. Absolute paths are used as-is.
 
 ## 🗂 Repository Layout
 
@@ -283,23 +517,36 @@ These cache and result directories are ignored by git.
 
 ## 🛠 Troubleshooting
 
+**`Manifest not found`**  
+Check whether you passed a folder or a JSON file. If you pass a folder, it must contain `Edit.json` unless you set `--manifest`:
+
+```bash
+python -m src.cli data/EVID-Bench/ --manifest MyManifest.json
+```
+
+**`video file not found`**  
+The CLI looks for `<id>.mp4` in the same folder as the manifest. If `Edit.json` contains `"id": "abc123"`, the expected file is `abc123.mp4`.
+
 **`OPENAI_API_KEY` is not set.**  
-Create `.env` from `.env.example` and fill `OPENAI_API_KEY`.
+Create `.env` from `.env.example`, fill `OPENAI_API_KEY`, and run from the repository root so `python-dotenv` can load `.env`.
 
 **Search returns no candidates.**  
-Check `SERPER_KEY` in `.env` (API key from https://serper.dev).
+Check `SERPER_KEY` in `.env` (API key from https://serper.dev). Also try `--search-only --only-ids <id>` to isolate search from video download and VLM calls.
 
 **`ffmpeg` or `ffprobe` not found.**  
-Install `ffmpeg` and make sure both commands are on `PATH`.
+Install `ffmpeg` and make sure both commands are on `PATH`. Verify with `ffmpeg -version` and `ffprobe -version`.
 
 **YouTube download fails with 403, age checks, or bot checks.**  
 Install Node.js / Deno / Bun, update `yt-dlp`, and provide cookies with `YT_DLP_COOKIES_FILE`, `YT_DLP_COOKIES_FILES`, or `YT_DLP_COOKIES_FROM_BROWSER`.
 
+**The judge is skipped.**  
+Check whether `groundtruth` is present and non-empty in the manifest. If you only want retrieval, pass `--skip-judge`; if you want ground-truth judging, fill `groundtruth`.
+
+**The run stops early or finds weak evidence.**  
+Open `run_trace.jsonl` and the corresponding log file. Increase `--max-deepsearch-rounds` after verifying that search and download work.
+
 **The run is slow or expensive.**  
 Start with `--only-ids`, `--limit 1`, `--candidate-video-height 360`, and `--skip-judge`. Increase coverage after the first end-to-end run works.
-
-**An agent cannot find the output files.**  
-Remember that default `--output _results` becomes `_results_<timestamp>`, and relative `--results-jsonl` / `--trace-jsonl` paths are resolved inside that output directory.
 
 ## 📖 Citation
 

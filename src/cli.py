@@ -41,6 +41,7 @@ if str(_ROOT) not in sys.path:
 from src.agent.judge import DEFAULT_JUDGE_MODELS, judge_points  # noqa: E402
 from src.agent.oracle_eval import (  # noqa: E402
     extract_groundtruth,
+    format_task_label,
     load_manifest_entries,
 )
 from src.agent_pipeline_v2 import VisualRetrievalAgentV2  # noqa: E402
@@ -378,7 +379,7 @@ def _build_partial_record(*, entry: dict[str, Any], video_id: str, error: str) -
     return {
         "video_id": video_id,
         "topic": str(entry.get("topic") or ""),
-        "task": str(entry.get("task") or ""),
+        "task": format_task_label(entry),
         "retrieval": {"matched_urls": [], "retrieved_truth_ids": [], "truth_hit": False},
         "deepsearch": {"collected_forgery_points": [], "evidence_videos": []},
         "tokens": {
@@ -709,15 +710,14 @@ def _process_one_inner(
     }
     record = {
         "video_id": video_id,
-        "task": str(entry.get("task") or ""),
+        "task": format_task_label(entry),
         "topic": str(entry.get("topic") or ""),
         "judge_overview": judge_overview,
         "manifest_entry_snapshot": {
             "id": entry.get("id"),
             "topic": entry.get("topic"),
             "task": entry.get("task"),
-            "video2": entry.get("video2", ""),
-            "video3": entry.get("video3", ""),
+            "source": entry.get("source"),
         },
         "retrieval": {
             "input_video_id": retrieval.get("input_video_id"),
