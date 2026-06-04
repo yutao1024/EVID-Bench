@@ -6,7 +6,7 @@ Usage::
 
 Common flags::
 
-    [--manifest Edit.json]
+    [--manifest evid_bench.json]
     [--output _results_YYYYMMDD_HHMMSS]
     [--limit N]
     [--skip-judge]
@@ -62,13 +62,13 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "input_path",
         type=str,
-        help="Path to a folder containing forged .mp4 files, or directly to a manifest JSON file. Video files are expected in the same directory as the manifest.",
+        help="Path to a dataset folder or a manifest JSON file. Forged videos are read from <folder>/videos/<id>.mp4 (or <folder>/<id>.mp4 as fallback).",
     )
     parser.add_argument(
         "--manifest",
         type=str,
-        default="Edit.json",
-        help="Manifest filename inside <folder> (default: Edit.json).",
+        default="evid_bench.json",
+        help="Manifest filename inside <folder> (default: evid_bench.json).",
     )
     parser.add_argument(
         "--output",
@@ -247,6 +247,21 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _forged_video_candidates(dataset_folder: Path, video_id: str) -> list[Path]:
+    """Candidate forged-video paths; prefers dataset_root/videos/<id>.mp4."""
+    return [
+        dataset_folder / "videos" / f"{video_id}.mp4",
+        dataset_folder / f"{video_id}.mp4",
+    ]
+
+
+def _resolve_forged_video_path(dataset_folder: Path, video_id: str) -> Path | None:
+    for path in _forged_video_candidates(dataset_folder, video_id):
+        if path.is_file():
+            return path
+    return None
+
+
 def _filter_entries(
     entries: list[dict[str, Any]],
     *,
@@ -293,6 +308,9 @@ def _gather_local_sources(
             downloads_dir / f"{yid}.mp4",
             downloads_dir / f"{yid}.mkv",
             downloads_dir / f"{yid}.webm",
+            dataset_folder / "videos" / f"{yid}.mp4",
+            dataset_folder / "videos" / f"{yid}.mkv",
+            dataset_folder / "videos" / f"{yid}.webm",
             dataset_folder / f"{yid}.mp4",
             dataset_folder / f"{yid}.mkv",
             dataset_folder / f"{yid}.webm",
@@ -519,9 +537,10 @@ def _process_one(
     video_id = str(entry.get("id") or "").strip()
     if not video_id:
         return None
-    video_path = dataset_folder / f"{video_id}.mp4"
-    if not video_path.is_file():
-        print(f"[Orchestrator] skip {video_id}: video file not found ({video_path})", flush=True)
+    video_path = _resolve_forged_video_path(dataset_folder, video_id)
+    if video_path is None:
+        expected = _forged_video_candidates(dataset_folder, video_id)[0]
+        print(f"[Orchestrator] skip {video_id}: video file not found ({expected})", flush=True)
         return None
 
     with completed_ids_lock:

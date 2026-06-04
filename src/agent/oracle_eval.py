@@ -1,11 +1,15 @@
-"""Oracle-eval helpers: load truth IDs / GT 3-5 point lists from Edit-style manifests.
+"""Oracle-eval helpers: load truth IDs / GT lists from evid_bench.json manifests.
 
-Manifest entry schema (Edit.json):
+Expected dataset layout:
+    <dataset_root>/evid_bench.json
+    <dataset_root>/videos/<forged_id>.mp4
+
+Manifest entry schema:
     {
       "id":          "<youtube id of the forged video>",
       "source":      ["<original youtube id>", ...],
-      "topic":       "Sports" | "Daily life" | ...,
-      "task":        {"category": "...", "type": "..."},
+      "topic":       "daily_life" | "sports" | ...,
+      "task":        {"category": "single_source_editing", "type": "selective_omission"},
       "groundtruth": ["GT point text", ...]              # optional
     }
 """
@@ -22,13 +26,20 @@ from urllib.parse import parse_qs, urlparse
 _YOUTUBE_ID_RE = re.compile(r"(?:v=|youtu\.be/|/shorts/|/embed/)([A-Za-z0-9_-]{8,})")
 
 
+def _snake_label(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return " ".join(part.capitalize() for part in text.split("_"))
+
+
 def format_task_label(entry: dict[str, Any]) -> str:
-    """Human-readable task label from manifest ``task``."""
+    """Human-readable task label from manifest ``task`` (snake_case values)."""
     task = entry.get("task")
     if not isinstance(task, dict):
         return ""
-    category = str(task.get("category") or "").strip()
-    subtype = str(task.get("type") or "").strip()
+    category = _snake_label(str(task.get("category") or ""))
+    subtype = _snake_label(str(task.get("type") or ""))
     if category and subtype:
         return f"{category} / {subtype}"
     return category or subtype

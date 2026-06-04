@@ -61,16 +61,17 @@ Input video
 
 Download from Hugging Face: [EVID-Bench Dataset](https://huggingface.co/datasets/Kirito-Lab/EVID-Bench/).
 
-Put the manifest and forged videos in **one folder**. The folder name is flexible, but the manifest and videos must live next to each other because the CLI finds videos by joining the folder path with `<id>.mp4`.
+Put the manifest at the dataset root and forged videos under `videos/`. The folder name is flexible; pass that root (or the manifest path) to the CLI.
 
 ```text
 data/EVID-Bench/              # example local root
-├── Edit.json                 # default manifest name (or any *.json path)
-├── <forged_video_id>.mp4     # filename stem must match manifest id
-└── ...
+├── evid_bench.json           # default manifest (222 entries)
+└── videos/
+    ├── <forged_video_id>.mp4 # stem must match manifest id
+    └── ...
 ```
 
-Manifest format: a JSON **array** of entries. Minimal fields:
+Manifest format: a JSON **array** of entries. Values use **snake_case** (as in the released `evid_bench.json`):
 
 ```json
 {
@@ -85,17 +86,17 @@ Manifest format: a JSON **array** of entries. Minimal fields:
 }
 ```
 
-- **`id`**: forged (manipulated) video ID; must match the `.mp4` basename in the same folder (`<forged_video_id>.mp4`).
-- **`source`**: YouTube IDs of the original footage used to construct the forgery (one ID for single-source tasks; two or more for multi-source tasks).
-- **`task`**: `category` is one of **AI Generation**, **Single-Source Editing**, **Multi-Source Editing**; `type` is one of the nine subtypes below.
-- **`topic`**: content domain — **Daily life**, **Education & skills**, **On-Scene footage**, **Sports**, **Performance & talent**, or **Reviews**.
+- **`id`**: forged (manipulated) video ID; must match `videos/<id>.mp4` (flat `<id>.mp4` next to the manifest still works as a fallback).
+- **`source`**: YouTube IDs of the original footage (one for single-source tasks; two or more for multi-source tasks). Required for oracle retrieval checks.
+- **`task`**: `category` + `type` — see the taxonomy table below for allowed snake_case values.
+- **`topic`**: one of `daily_life`, `education_and_skills`, `on_scene_footage`, `sports`, `performance_and_talent`, `reviews`.
 - **`groundtruth`**: forgery points as a string list.
 
-| Category | `type` values |
+| `task.category` | `task.type` values |
 | --- | --- |
-| AI Generation | identity swap · synthetic insertion · object manipulation |
-| Single-Source Editing | selective omission · causal inversion · manipulative montage |
-| Multi-Source Editing | narrative fabrication · magnitude manipulation · contextual fabrication |
+| `ai_generation` | `identity_swap` · `synthetic_insertion` · `object_manipulation` |
+| `single_source_editing` | `selective_omission` · `causal_inversion` · `manipulative_montage` |
+| `multi_source_editing` | `narrative_fabrication` · `magnitude_manipulation` · `contextual_fabrication` |
 
 ### Download & Run Evaluation Only
 
@@ -103,9 +104,9 @@ If you only want to **run the released benchmark** (not build new data), downloa
 
 ```text
 data/EVID-Bench/
-├── Edit.json
-├── <forged_video_id>.mp4
-└── ...
+├── evid_bench.json
+└── videos/
+    └── <forged_video_id>.mp4
 ```
 
 Configure [`.env`](#configuration), then evaluate one sample or the full manifest:
@@ -308,7 +309,7 @@ Most users can leave these unset.
 
 A full run searches the web, downloads candidates, calls VLMs, and optionally scores against `groundtruth`. Work through the profiles below in order; confirm `python -m src.cli --help` works before Profile 1.
 
-Replace `data/EVID-Bench/` and `<forged_video_id>` with your paths. You can pass the data folder (expects `Edit.json` inside) or a direct path to the manifest JSON.
+Replace `data/EVID-Bench/` and `<forged_video_id>` with your paths. Pass the dataset folder (expects `evid_bench.json` inside) or a direct path such as `data/EVID-Bench/evid_bench.json`.
 
 ### Recommended Run Profiles
 
@@ -367,7 +368,7 @@ Increase `--num-workers` only after sequential runs are stable.
 | Argument                              | Default                                            | Description                                                                           |
 | ------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `input_path`                          | required                                           | Folder containing videos and manifest, or a direct manifest JSON path.                |
-| `--manifest`                          | `Edit.json`                                        | Manifest filename when `input_path` is a folder.                                      |
+| `--manifest`                          | `evid_bench.json`                                  | Manifest filename when `input_path` is a folder.                                      |
 | `--output`                            | `_results`                                         | Output directory under the data folder. `_results` expands to `_results_<timestamp>`. |
 | `--only-ids`                          | all                                                | Comma-separated video IDs to run.                                                     |
 | `--limit`                             | all                                                | Run only the first `N` manifest entries.                                              |
@@ -392,7 +393,7 @@ Increase `--num-workers` only after sequential runs are stable.
 
 ## 📦 Outputs
 
-For a manifest run such as `data/EVID-Bench/Edit.json`, outputs are written next to the manifest. The default `--output _results` is expanded to a timestamped directory so that separate runs do not overwrite each other:
+For a manifest run on `data/EVID-Bench/`, outputs are written under the dataset folder. The default `--output _results` is expanded to a timestamped directory so that separate runs do not overwrite each other:
 
 ```text
 data/EVID-Bench/
@@ -518,14 +519,14 @@ Relative `--results-jsonl` and `--trace-jsonl` paths are resolved under `--outpu
 ## 🛠 Troubleshooting
 
 **`Manifest not found`**  
-Check whether you passed a folder or a JSON file. If you pass a folder, it must contain `Edit.json` unless you set `--manifest`:
+Check whether you passed a folder or a JSON file. If you pass a folder, it must contain `evid_bench.json` unless you set `--manifest`:
 
 ```bash
 python -m src.cli data/EVID-Bench/ --manifest MyManifest.json
 ```
 
 **`video file not found`**  
-The CLI looks for `<id>.mp4` in the same folder as the manifest. If `Edit.json` contains `"id": "abc123"`, the expected file is `abc123.mp4`.
+The CLI looks for `videos/<id>.mp4` under the dataset folder (then `<id>.mp4` next to the manifest as fallback). If `evid_bench.json` has `"id": "abc123"`, the expected path is `data/EVID-Bench/videos/abc123.mp4`.
 
 **`OPENAI_API_KEY` is not set.**  
 Create `.env` from `.env.example`, fill `OPENAI_API_KEY`, and run from the repository root so `python-dotenv` can load `.env`.
