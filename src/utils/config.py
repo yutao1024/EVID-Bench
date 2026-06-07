@@ -34,15 +34,20 @@ YT_DLP_COOKIES_FROM_BROWSER = os.getenv("YT_DLP_COOKIES_FROM_BROWSER", "").strip
 # 多个用逗号：node,deno,bun。也可 node:/opt/homebrew/bin/node
 YT_DLP_JS_RUNTIMES = os.getenv("YT_DLP_JS_RUNTIMES", "node,deno").strip()
 
+# DashScope (百炼) OpenAI-compatible endpoint. Keys are region-specific — pick the URL
+# that matches where your API key was created (see Alibaba Model Studio docs).
+DEFAULT_DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
 
 def load_api_config() -> dict[str, str]:
     """Load provider API keys from environment (multi-vendor routing)."""
+    dashscope_base = os.getenv("DASHSCOPE_BASE_URL", "").strip() or DEFAULT_DASHSCOPE_BASE_URL
     return {
         "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", "").strip(),
         "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", "").strip(),
         "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", "").strip(),
         "DASHSCOPE_API_KEY": os.getenv("DASHSCOPE_API_KEY", "").strip(),
-        "DASHSCOPE_BASE_URL": os.getenv("DASHSCOPE_BASE_URL", "").strip(),
+        "DASHSCOPE_BASE_URL": dashscope_base,
     }
 
 

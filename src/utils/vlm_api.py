@@ -153,7 +153,6 @@ class ModelAPIHandler:
         temperature: float,
     ) -> tuple[str, dict[str, int]]:
         import google.generativeai as genai
-        from google.generativeai import types
 
         genai.configure(api_key=_require_key(self.config, "gemini"))
         uploaded_files: list[Any] = []
@@ -181,13 +180,16 @@ class ModelAPIHandler:
                 if uploaded.state.name == "FAILED":
                     raise ValueError(f"Gemini file upload failed: {uploaded.name}")
 
-            generation_config = types.GenerateContentConfig(temperature=temperature)
+            gen_cfg: dict[str, Any] = {"temperature": temperature}
             if json_mode:
-                generation_config.response_mime_type = "application/json"
+                gen_cfg["response_mime_type"] = "application/json"
 
             model = genai.GenerativeModel(normalize_model_name(model_name))
             contents = list(uploaded_files) + [prompt_text]
-            response = model.generate_content(contents, generation_config=generation_config)
+            response = model.generate_content(
+                contents,
+                generation_config=genai.GenerationConfig(**gen_cfg),
+            )
             text = str(getattr(response, "text", "") or "").strip()
             if not text:
                 raise ValueError("vlm_no_content: Gemini returned empty text.")
@@ -324,7 +326,10 @@ class ModelAPIHandler:
                     json_mode=json_mode,
                     temperature=temperature,
                     api_key=_require_key(self.config, "qwen"),
-                    base_url=str(self.config.get("DASHSCOPE_BASE_URL") or "").strip() or None,
+                    base_url=str(
+                        self.config.get("DASHSCOPE_BASE_URL")
+                        or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+                    ).strip(),
                 )
             return self._call_openai(
                 model_name=model_name,

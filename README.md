@@ -252,16 +252,21 @@ Copy the environment template from the repository root:
 cp .env.example .env
 ```
 
-Edit `.env` and fill the keys for the providers you use:
+Edit `.env` and fill the keys for the providers you use (see table below; only set keys for models you actually call):
 
 ```bash
 OPENAI_API_KEY=your_openai_key
 GEMINI_API_KEY=your_gemini_key
 ANTHROPIC_API_KEY=your_anthropic_key
 SERPER_KEY=your_serper_key
+
+# Optional — only if you use a Qwen model (model name contains "qwen"):
+DASHSCOPE_API_KEY=your_dashscope_key
+DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+# International keys: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 ```
 
-- Each model is routed to its **native API** by name (e.g. `gemini-*` → Google, `gpt-*` → OpenAI, `claude-*` → Anthropic). You only need keys for the models you actually run.
+- Each model is routed to its **native API** by name substring (`gpt` → OpenAI, `gemini` → Google, `claude` → Anthropic, `qwen` → DashScope). Routing logic lives in [`src/utils/vlm_api.py`](src/utils/vlm_api.py).
 - **`SERPER_KEY`** is required for Google search through [Serper](https://serper.dev). If this is missing or invalid, retrieval will not find web candidates.
 
 **Model roles (CLI flags, not `.env`):** `--reasoning-model` drives frame analysis, search planning, candidate filtering, and cross-video comparison; `--judge-models` is a comma-separated panel that scores model outputs against `groundtruth`. Each judge model uses its own provider API key from `.env`.
@@ -273,10 +278,15 @@ SERPER_KEY=your_serper_key
 | `OPENAI_API_KEY` | [OpenAI](https://platform.openai.com/) | `gpt` (default `--reasoning-model` `gpt-5.5`) |
 | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/) | `gemini` |
 | `ANTHROPIC_API_KEY` | [Anthropic](https://console.anthropic.com/) | `claude` |
-| `DASHSCOPE_API_KEY` | [Alibaba DashScope](https://dashscope.aliyun.com/) | `qwen` (optional) |
+| `DASHSCOPE_API_KEY` | [Alibaba百炼 / DashScope](https://dashscope.aliyun.com/) | `qwen` (optional) |
+| `DASHSCOPE_BASE_URL` | [OpenAI-compatible endpoint docs](https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions) | Qwen only; default Beijing `https://dashscope.aliyuncs.com/compatible-mode/v1` |
 | `SERPER_KEY` | [serper.dev](https://serper.dev) | web search (always required for retrieval) |
 
 Make sure keys are valid and have enough quota before a full-folder run.
+
+#### Adding a new provider
+
+In [`src/utils/vlm_api.py`](src/utils/vlm_api.py): (1) add a substring rule in `resolve_provider()`, (2) add `_call_<vendor>()` (copy an existing handler), (3) branch to it in `call_vlm()`. Then add the API key (and base URL if needed) in `config.py` and `.env.example`.
 
 #### YouTube cookies (recommended for downloads)
 
@@ -528,8 +538,8 @@ python -m src.cli data/EVID-Bench/ --manifest MyManifest.json
 **`video file not found`**  
 The CLI looks for `videos/<id>.mp4` under the dataset folder (then `<id>.mp4` next to the manifest as fallback). If `evid_bench.json` has `"id": "abc123"`, the expected path is `data/EVID-Bench/videos/abc123.mp4`.
 
-**`GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` is not set.**  
-Create `.env` from `.env.example` and fill the key for each model you use. The default `--reasoning-model gpt-5.5` requires `OPENAI_API_KEY`; each entry in `--judge-models` needs its matching provider key. Run from the repository root so `python-dotenv` can load `.env`.
+**`GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `DASHSCOPE_API_KEY` is not set.**  
+Create `.env` from `.env.example` and fill the key for each model you use. The default `--reasoning-model gpt-5.5` requires `OPENAI_API_KEY`; each entry in `--judge-models` needs its matching provider key; Qwen models also need `DASHSCOPE_API_KEY` (and `DASHSCOPE_BASE_URL` if not using the Beijing default). Run from the repository root so `python-dotenv` can load `.env`.
 
 **Search returns no candidates.**  
 Check `SERPER_KEY` in `.env` (API key from https://serper.dev). Also try `--search-only --only-ids <id>` to isolate search from video download and VLM calls.
