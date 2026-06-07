@@ -349,8 +349,8 @@ python -m src.cli data/EVID-Bench/ \
   --max-deepsearch-rounds 6 \
   --total-sample-frames 64 \
   --save-run-trace \
-  --reasoning-model google/gemini-2.5-pro \
-  --judge-models "gpt-5.5,gemini-3.1-pro-preview,claude-sonnet-4.6"
+  --reasoning-model gpt-5.5 \
+  --judge-models "gpt-5.4,gemini-3.1-pro-preview,claude-sonnet-4.6"
 ```
 
 **Profile 4 — Full folder**  
