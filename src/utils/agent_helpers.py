@@ -145,10 +145,11 @@ def _build_multimodal_content(
 
 
 def call_vlm_with_retry(
-    client: Any,
+    api_config: dict[str, Any],
     model: str,
     contents: list[Any],
     *,
+    image_paths: list[str] | None = None,
     max_retries: int = 3,
     temperature: float = 0.0,
     json_mode: bool = True,
@@ -156,78 +157,25 @@ def call_vlm_with_retry(
     logger: Any = None,
     log_prefix: str = "",
 ) -> tuple[str, dict[str, int]]:
-    """Call OpenAI-compatible chat completions API (e.g. OpenRouter) with retry.
+    """Call VLM via provider-native SDK routing (Gemini / Claude / OpenAI / ...).
 
-    `contents` is the list returned by _build_multimodal_content():
-      [{"type": "text", "text": "..."}, {"type": "image_url", ...}, ...]
-
-    Returns (content_str, token_usage_dict).
-    token_usage_dict has keys: prompt_tokens, completion_tokens, total_tokens (all int, 0 on failure).
+    `contents` follows _build_multimodal_content() format. Pass `image_paths`
+    when available so Gemini can use file upload instead of re-encoding base64.
     """
-    last_error: Exception | None = None
-    for attempt in range(max_retries):
-        try:
-            kwargs: dict[str, Any] = {
-                "model": model,
-                "messages": [{"role": "user", "content": contents}],
-                "temperature": temperature,
-            }
-            if json_mode:
-                kwargs["response_format"] = {"type": "json_object"}
-            response = client.chat.completions.create(**kwargs)
+    from src.utils.vlm_api import call_model_with_retry
 
-            # Defensive: providers (OpenRouter / upstream Gemini) can return
-            # responses with no choices, or with a choice that has no message,
-            # or with message.content == None. Classify all of these as
-            # vlm_no_content so retry can kick in instead of crashing the
-            # whole agent turn with "'NoneType' object is not subscriptable".
-            choices = getattr(response, "choices", None)
-            if not choices:
-                raise ValueError(
-                    f"vlm_no_content: response has no choices (response={response!r})"
-                )
-            msg = getattr(choices[0], "message", None)
-            if msg is None:
-                raise ValueError(
-                    "vlm_no_content: response.choices[0] has no message field"
-                )
-            content = getattr(msg, "content", None)
-            if content is None:
-                # Some providers wrap an error object inside choices[0]; surface
-                # it in the error message so the log shows what actually came back.
-                err_obj = getattr(choices[0], "error", None) or getattr(response, "error", None)
-                raise ValueError(
-                    f"vlm_no_content: message.content is None (provider_error={err_obj!r})"
-                )
-            if not str(content).strip():
-                raise ValueError("vlm_no_content: VLM returned empty content string.")
-
-            # Extract token usage
-            usage = getattr(response, "usage", None)
-            tokens = {
-                "prompt_tokens": int(getattr(usage, "prompt_tokens", 0) or 0) if usage else 0,
-                "completion_tokens": int(getattr(usage, "completion_tokens", 0) or 0) if usage else 0,
-                "total_tokens": int(getattr(usage, "total_tokens", 0) or 0) if usage else 0,
-            }
-            if callable(logger):
-                logger(
-                    f"{log_prefix}VLM call success on attempt {attempt + 1}/{max_retries} "
-                    f"(tokens: {tokens['prompt_tokens']}p + {tokens['completion_tokens']}c = {tokens['total_tokens']}t)"
-                )
-            return content, tokens
-        except Exception as exc:
-            last_error = exc
-            if callable(logger):
-                logger(
-                    f"{log_prefix}VLM call failed on attempt {attempt + 1}/{max_retries}: {exc}"
-                )
-            if attempt == max_retries - 1:
-                break
-            sleep_s = retry_backoff_sec * (2**attempt)
-            if callable(logger):
-                logger(f"{log_prefix}Retrying after {sleep_s:.1f}s")
-            time.sleep(sleep_s)
-    raise RuntimeError(f"VLM call failed after retries: {last_error}") from last_error
+    return call_model_with_retry(
+        api_config,
+        model,
+        contents,
+        image_paths=image_paths,
+        max_retries=max_retries,
+        temperature=temperature,
+        json_mode=json_mode,
+        retry_backoff_sec=retry_backoff_sec,
+        logger=logger,
+        log_prefix=log_prefix,
+    )
 
 
 import cv2

@@ -22,8 +22,8 @@ from src.utils.token_usage import (
 
 
 DEFAULT_JUDGE_MODELS = [
-    "gpt-5.5",
-    "gemini-3.1-pro",
+    "gpt-5.4",
+    "gemini-3.1-pro-preview",
     "claude-sonnet-4.6",
 ]
 
@@ -60,7 +60,7 @@ def _judge_points_single(
     video_id: str,
     gt_points: list[str],
     pred_points: list[dict[str, Any]],
-    client,
+    api_config: dict[str, Any],
     model: str,
     temperature: float = 0.0,
     logger=None,
@@ -102,7 +102,7 @@ def _judge_points_single(
 
     try:
         raw, judge_tokens = call_vlm_with_retry(
-            client,
+            api_config,
             model,
             _build_multimodal_content(prompt),
             max_retries=2,
@@ -194,7 +194,7 @@ def judge_points(
     video_id: str,
     gt_points: list[str],
     pred_points: list[dict[str, Any]],
-    client,
+    api_config: dict[str, Any],
     models: list[str],
     temperature: float = 0.0,
     logger=None,
@@ -233,7 +233,7 @@ def judge_points(
             video_id=video_id,
             gt_points=gt,
             pred_points=pred_points,
-            client=client,
+            api_config=api_config,
             model=model,
             temperature=temperature,
             logger=logger,
@@ -326,7 +326,7 @@ def judge_points(
 
 def sanity_self_judge(
     *,
-    client,
+    api_config: dict[str, Any],
     model: str,
     sample_gt: list[str],
     logger=None,
@@ -348,7 +348,7 @@ def sanity_self_judge(
         video_id="__sanity__",
         gt_points=sample_gt,
         pred_points=pred,
-        client=client,
+        api_config=api_config,
         models=[model],
         logger=logger,
     )

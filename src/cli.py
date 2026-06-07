@@ -45,7 +45,7 @@ from src.agent.oracle_eval import (  # noqa: E402
     load_manifest_entries,
 )
 from src.agent_pipeline_v2 import VisualRetrievalAgentV2  # noqa: E402
-from src.utils.config import get_llm_client  # noqa: E402
+from src.utils.config import load_api_config  # noqa: E402
 from src.utils.pipeline_log import default_log_path, tee_stdout  # noqa: E402
 from src.utils.token_usage import (  # noqa: E402
     add_token_counter,
@@ -191,8 +191,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--reasoning-model",
         type=str,
-        default="google/gemini-2.5-pro",
-        help="Model for all VLM calls (default: google/gemini-2.5-pro).",
+        default="gpt-5.5",
+        help="Model for all VLM calls (default: gpt-5.5).",
     )
     parser.add_argument(
         "--frame-resize-workers",
@@ -520,7 +520,7 @@ def _process_one(
     downloads_dir: Path,
     agent: VisualRetrievalAgentV2,
     judge_models: list[str],
-    judge_client,
+    api_config,
     skip_judge: bool,
     save_run_trace: bool,
     resume: bool,
@@ -563,7 +563,7 @@ def _process_one(
                 entry=entry, video_id=video_id, video_path=video_path,
                 dataset_folder=dataset_folder, output_dir=output_dir,
                 downloads_dir=downloads_dir, agent=agent,
-                judge_models=judge_models, judge_client=judge_client,
+                judge_models=judge_models, api_config=api_config,
                 skip_judge=skip_judge,
                 save_run_trace=save_run_trace,
                 completed_ids=completed_ids,
@@ -582,7 +582,7 @@ def _process_one(
                 entry=entry, video_id=video_id, video_path=video_path,
                 dataset_folder=dataset_folder, output_dir=output_dir,
                 downloads_dir=downloads_dir, agent=agent,
-                judge_models=judge_models, judge_client=judge_client,
+                judge_models=judge_models, api_config=api_config,
                 skip_judge=skip_judge,
                 save_run_trace=save_run_trace,
                 completed_ids=completed_ids,
@@ -604,7 +604,7 @@ def _process_one_inner(
     downloads_dir: Path,
     agent: VisualRetrievalAgentV2,
     judge_models: list[str],
-    judge_client,
+    api_config,
     skip_judge: bool,
     save_run_trace: bool,
     completed_ids: set[str],
@@ -667,7 +667,7 @@ def _process_one_inner(
                 video_id=video_id,
                 gt_points=gt_points,
                 pred_points=analysis.get("points") or [],
-                client=judge_client,
+                api_config=api_config,
                 models=judge_models,
                 logger=lambda m: print(m, flush=True),
             )
@@ -965,7 +965,7 @@ def main() -> None:
 
     judge_models = _resolve_judge_models(args)
     print(f"[Orchestrator] judge models: {judge_models}", flush=True)
-    client = get_llm_client()
+    api_config = load_api_config()
 
     records: list[dict[str, Any]] = list(existing_records) if args.resume else []
 
@@ -979,7 +979,7 @@ def main() -> None:
                 downloads_dir=downloads_dir,
                 agent=agent,
                 judge_models=judge_models,
-                judge_client=client,
+                api_config=api_config,
                 skip_judge=args.skip_judge,
                 save_run_trace=args.save_run_trace,
                 resume=args.resume,

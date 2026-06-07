@@ -207,7 +207,7 @@ class AgentTools:
     def __init__(
         self,
         *,
-        client: Any,
+        api_config: dict[str, Any],
         model: str,
         candidate_sample_frames: int,
         candidate_video_height: int = 480,
@@ -218,7 +218,7 @@ class AgentTools:
         query_temperature: float = 0.0,
         frame_resize_workers: int | None = None,
     ) -> None:
-        self.client = client
+        self.api_config = api_config
         self.model = model
         if frame_resize_workers is None:
             from src.utils.frame_sampling import default_frame_resize_workers
@@ -293,9 +293,10 @@ class AgentTools:
     ) -> dict[str, Any]:
         contents = _build_multimodal_content(prompt, image_paths=frame_paths)
         raw, tokens = call_vlm_with_retry(
-            self.client,
+            self.api_config,
             self.model,
             contents,
+            image_paths=frame_paths,
             max_retries=3,
             temperature=temperature,
             json_mode=True,
@@ -367,9 +368,10 @@ class AgentTools:
             )
             contents = _build_multimodal_content(prompt, image_paths=saved_paths)
             raw_text, _tokens = call_vlm_with_retry(
-                self.client,
+                self.api_config,
                 self.model,
                 contents,
+                image_paths=saved_paths,
                 max_retries=3,
                 temperature=self.query_temperature,
                 json_mode=True,  # Helps enforce JSON format
@@ -1101,10 +1103,12 @@ class AgentTools:
             prompt + "\n\nFrame groups order:\n- First all images are Group A (forged).\n- Then all images are Group B (candidate).",
             image_paths=[*forged_frame_paths, *candidate_frame_paths],
         )
+        all_paths = [*forged_frame_paths, *candidate_frame_paths]
         raw, _tokens = call_vlm_with_retry(
-            self.client,
+            self.api_config,
             self.model,
             contents,
+            image_paths=all_paths,
             max_retries=3,
             temperature=0.0,
             json_mode=True,
@@ -1140,10 +1144,12 @@ class AgentTools:
             prompt + "\n\nFrame groups order:\n- First all images are Group A (forged).\n- Then all images are Group B (candidate).",
             image_paths=[*forged_frame_paths, *candidate_frame_paths],
         )
+        all_paths = [*forged_frame_paths, *candidate_frame_paths]
         raw, _tokens = call_vlm_with_retry(
-            self.client,
+            self.api_config,
             self.model,
             contents,
+            image_paths=all_paths,
             max_retries=3,
             temperature=0.0,
             json_mode=True,
@@ -1254,9 +1260,11 @@ class AgentTools:
         from src.utils.agent_helpers import call_vlm_with_retry
 
         raw, _tokens = call_vlm_with_retry(
-            self.client, self.model,
+            self.api_config,
+            self.model,
             [{"type": "text", "text": prompt}],
-            temperature=0.0, logger=self.log,
+            temperature=0.0,
+            logger=self.log,
         )
         data = extract_json_from_text(raw)
         return {

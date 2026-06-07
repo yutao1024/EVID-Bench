@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 load_dotenv()
 
@@ -12,8 +11,6 @@ PIPELINE_LOG_DIR = Path(
     os.getenv("PIPELINE_LOG_DIR", str(_PROJECT_ROOT / "logs"))
 ).expanduser()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
 SERPER_KEY = os.getenv("SERPER_KEY", "").strip()
 
 MAX_COMPRESSED_VIDEO_BYTES = int(os.getenv("MAX_COMPRESSED_VIDEO_BYTES", str(18 * 1024 * 1024)))
@@ -36,6 +33,17 @@ YT_DLP_COOKIES_FROM_BROWSER = os.getenv("YT_DLP_COOKIES_FROM_BROWSER", "").strip
 # YouTube 解签 / n challenge 需要 JS 运行时；默认可用 node（需本机已安装 node 且在 PATH）
 # 多个用逗号：node,deno,bun。也可 node:/opt/homebrew/bin/node
 YT_DLP_JS_RUNTIMES = os.getenv("YT_DLP_JS_RUNTIMES", "node,deno").strip()
+
+
+def load_api_config() -> dict[str, str]:
+    """Load provider API keys from environment (multi-vendor routing)."""
+    return {
+        "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", "").strip(),
+        "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY", "").strip(),
+        "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", "").strip(),
+        "DASHSCOPE_API_KEY": os.getenv("DASHSCOPE_API_KEY", "").strip(),
+        "DASHSCOPE_BASE_URL": os.getenv("DASHSCOPE_BASE_URL", "").strip(),
+    }
 
 
 def resolve_yt_dlp_cookies_files() -> list[str]:
@@ -69,12 +77,3 @@ def resolve_yt_dlp_cookies_files() -> list[str]:
     if single:
         return _existing([single])
     return []
-
-
-def get_llm_client():
-    if not OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY is not set.")
-    return OpenAI(
-        api_key=OPENAI_API_KEY,
-        base_url=OPENAI_BASE_URL,
-    )

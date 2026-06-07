@@ -1,4 +1,6 @@
 openai
+google-generativeai
+anthropic
 python-dotenv
 opencv-python-headless
 numpy

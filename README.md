@@ -2,7 +2,7 @@
   <img width="800" alt="EVID-Bench" src="assets/main.png" />
   <br/>
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](#-quick-start) [![GitHub Repo](https://img.shields.io/badge/GitHub-EVID--Bench-24292F?style=flat-square&logo=github&logoColor=white)](https://github.com/yutao1024/EVID-Bench) [![arXiv](https://img.shields.io/badge/arXiv-coming_soon-B31B1B?style=flat-square&logo=arxiv&logoColor=white)](#-citation) [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Dataset-orange)](https://huggingface.co/datasets/Kirito-Lab/EVID-Bench/)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](#-quick-start) [![GitHub Repo](https://img.shields.io/badge/GitHub-EVID--Bench-24292F?style=flat-square&logo=github&logoColor=white)](https://github.com/yutao1024/EVID-Bench) [![arXiv](https://img.shields.io/badge/arXiv-2606.04098-B31B1B?style=flat-square&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2606.04098) [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Dataset-orange)](https://huggingface.co/datasets/Kirito-Lab/EVID-Bench/)
 
   ✨ **Search-grounded video misinformation detection: retrieve external video evidence, compare across sources, and explain what was falsified.** ✨
 
@@ -25,7 +25,7 @@
 
 ## 🔥 News
 
-**[2026/06/05]** 📄 Paper will be available on arXiv. Paper link: `PLACEHOLDER_ARXIV_URL`.
+**[2026/06/02]** 📄 Paper is available on [arXiv:2606.04098](https://arxiv.org/abs/2606.04098).
 
 **[2026/06/02]** 🤗 EVID-Bench dataset is now available on Hugging Face! Explore the [Dataset](https://huggingface.co/datasets/Kirito-Lab/EVID-Bench/).
 
@@ -252,27 +252,29 @@ Copy the environment template from the repository root:
 cp .env.example .env
 ```
 
-Edit `.env` and fill the required keys:
+Edit `.env` and fill the keys for the providers you use:
 
 ```bash
-OPENAI_API_KEY=your_openai_or_openrouter_key
-OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_API_KEY=your_openai_key
+GEMINI_API_KEY=your_gemini_key
+ANTHROPIC_API_KEY=your_anthropic_key
 SERPER_KEY=your_serper_key
 ```
 
-- **`OPENAI_API_KEY`** is required. It can be an OpenAI key, an OpenRouter key, or another OpenAI-SDK-compatible gateway key.
-- **`OPENAI_BASE_URL`** is optional. The default example uses OpenRouter. For official OpenAI, use `https://api.openai.com/v1`.
+- Each model is routed to its **native API** by name (e.g. `gemini-*` → Google, `gpt-*` → OpenAI, `claude-*` → Anthropic). You only need keys for the models you actually run.
 - **`SERPER_KEY`** is required for Google search through [Serper](https://serper.dev). If this is missing or invalid, retrieval will not find web candidates.
 
-**Model roles (CLI flags, not `.env`):** `--reasoning-model` drives frame analysis, search planning, candidate filtering, and cross-video comparison; `--judge-models` is a comma-separated panel that scores model outputs against `groundtruth`. Use a strong VLM for `--reasoning-model` and your preferred judge models for scoring.
+**Model roles (CLI flags, not `.env`):** `--reasoning-model` drives frame analysis, search planning, candidate filtering, and cross-video comparison; `--judge-models` is a comma-separated panel that scores model outputs against `groundtruth`. Each judge model uses its own provider API key from `.env`.
 
 #### How to obtain API keys
 
-| Key / setting | Where to get it | Used for |
+| Key / setting | Where to get it | Used when model name contains |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | [OpenAI](https://platform.openai.com/), [OpenRouter](https://openrouter.ai/), or another OpenAI-compatible gateway | VLM calls and judge requests |
-| `OPENAI_BASE_URL` | Provider documentation (OpenRouter default in `.env.example`) | API endpoint |
-| `SERPER_KEY` | Sign up at [serper.dev](https://serper.dev) | YouTube/web search during DeepSearch |
+| `OPENAI_API_KEY` | [OpenAI](https://platform.openai.com/) | `gpt` (default `--reasoning-model` `gpt-5.5`) |
+| `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/) | `gemini` |
+| `ANTHROPIC_API_KEY` | [Anthropic](https://console.anthropic.com/) | `claude` |
+| `DASHSCOPE_API_KEY` | [Alibaba DashScope](https://dashscope.aliyun.com/) | `qwen` (optional) |
+| `SERPER_KEY` | [serper.dev](https://serper.dev) | web search (always required for retrieval) |
 
 Make sure keys are valid and have enough quota before a full-folder run.
 
@@ -377,8 +379,8 @@ Increase `--num-workers` only after sequential runs are stable.
 | `--candidate-sample-frames`           | same as total                                      | Candidate frames for fine extraction.                                                 |
 | `--max-deepsearch-rounds`             | `6`                                                | Maximum DeepSearch search rounds.                                                     |
 | `--max-reflect-rounds`                | `3`                                                | Maximum reflection rounds after search failure.                                       |
-| `--reasoning-model`                   | `gpt-5.5`                            | VLM used for reasoning and cross-video comparison.                                  |
-| `--judge-models`                      | `gpt-5.4,gemini-3.1-pro-preview,claude-sonnet-4.6` | Comma-separated judge models for ground-truth scoring.                              |
+| `--reasoning-model`                   | `gpt-5.5`                                          | VLM used for reasoning and cross-video comparison (routed to `OPENAI_API_KEY`).     |
+| `--judge-models`                      | `gpt-5.4,gemini-3.1-pro-preview,claude-sonnet-4.6` | Comma-separated judge models for ground-truth scoring.                                |
 | `--judge-model`                       | unset                                              | Single-judge override.                                                                |
 | `--save-run-trace`                    | off                                                | Write structured trace rows.                                                          |
 | `--results-jsonl`                     | `results.jsonl`                                    | Results JSONL path, relative paths resolved under output dir.                         |
@@ -526,8 +528,8 @@ python -m src.cli data/EVID-Bench/ --manifest MyManifest.json
 **`video file not found`**  
 The CLI looks for `videos/<id>.mp4` under the dataset folder (then `<id>.mp4` next to the manifest as fallback). If `evid_bench.json` has `"id": "abc123"`, the expected path is `data/EVID-Bench/videos/abc123.mp4`.
 
-**`OPENAI_API_KEY` is not set.**  
-Create `.env` from `.env.example`, fill `OPENAI_API_KEY`, and run from the repository root so `python-dotenv` can load `.env`.
+**`GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` is not set.**  
+Create `.env` from `.env.example` and fill the key for each model you use. The default `--reasoning-model gpt-5.5` requires `OPENAI_API_KEY`; each entry in `--judge-models` needs its matching provider key. Run from the repository root so `python-dotenv` can load `.env`.
 
 **Search returns no candidates.**  
 Check `SERPER_KEY` in `.env` (API key from https://serper.dev). Also try `--search-only --only-ids <id>` to isolate search from video download and VLM calls.
@@ -552,5 +554,13 @@ Start with `--only-ids`, `--limit 1`, `--candidate-video-height 360`, and `--ski
 Please kindly cite our paper if you find this project or dataset helpful.
 
 ```bibtex
-
+@misc{yu2026seeingbelievingbenchmark,
+      title={When Seeing Is Not Believing -- A Benchmark for Search-Grounded Video Misinformation Detection}, 
+      author={Tao Yu and Yujia Yang and Shenghua Chai and Zhang Jinshuai and Haopeng Jin and Hao Wang and Minghui Zhang and Zhongtian Luo and Yuchen Long and Xinlong Chen and Jiabing Yang and Zhaolu Kang and Yuxuan Zhou and Zhengyu Man and Xinming Wang and Hongzhu Yi and Zheqi He and Xi Yang and Yan Huang and Liang Wang},
+      year={2026},
+      eprint={2606.04098},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2606.04098}, 
+}
 ```

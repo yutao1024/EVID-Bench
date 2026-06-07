@@ -78,9 +78,9 @@ class VisualRetrievalAgentV2:
         reasoning_model: str | None = None,
         frame_resize_workers: int | None = None,
     ) -> None:
-        from src.utils.config import get_llm_client
+        from src.utils.config import load_api_config
 
-        self.client = get_llm_client()
+        self.api_config = load_api_config()
         self.reasoning_model = reasoning_model
         self.model = self.reasoning_model
         if frame_resize_workers is None:
@@ -186,9 +186,10 @@ class VisualRetrievalAgentV2:
         self._log(f"[COT] sending {len(frame_paths)} frames to VLM for chain-of-thought analysis")
         contents = _build_multimodal_content(PROMPT_COT_RETRIEVAL_V3, image_paths=frame_paths)
         raw, tokens = call_vlm_with_retry(
-            self.client,
+            self.api_config,
             self.reasoning_model,
             contents,
+            image_paths=frame_paths,
             max_retries=3,
             temperature=self.query_temperature,
             json_mode=True,
@@ -276,9 +277,10 @@ class VisualRetrievalAgentV2:
 
         contents = _build_multimodal_content(prompt, image_paths=frame_paths)
         raw, tokens = call_vlm_with_retry(
-            self.client,
+            self.api_config,
             self.reasoning_model,
             contents,
+            image_paths=frame_paths,
             max_retries=3,
             temperature=self.query_temperature,
             json_mode=True,
@@ -994,7 +996,7 @@ class VisualRetrievalAgentV2:
             )
 
             tools = AgentTools(
-                client=self.client,
+                api_config=self.api_config,
                 model=self.model,
                 frame_resize_workers=self.frame_resize_workers,
                 candidate_sample_frames=self.candidate_sample_frames,
