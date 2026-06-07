@@ -377,8 +377,8 @@ Increase `--num-workers` only after sequential runs are stable.
 | `--candidate-sample-frames`           | same as total                                      | Candidate frames for fine extraction.                                                 |
 | `--max-deepsearch-rounds`             | `6`                                                | Maximum DeepSearch search rounds.                                                     |
 | `--max-reflect-rounds`                | `3`                                                | Maximum reflection rounds after search failure.                                       |
-| `--reasoning-model`                   | `google/gemini-2.5-pro`                            | VLM used for reasoning and cross-video comparison.                                  |
-| `--judge-models`                      | `gpt-5.5,gemini-3.1-pro-preview,claude-sonnet-4.6` | Comma-separated judge models for ground-truth scoring.                              |
+| `--reasoning-model`                   | `gpt-5.5`                            | VLM used for reasoning and cross-video comparison.                                  |
+| `--judge-models`                      | `gpt-5.4,gemini-3.1-pro-preview,claude-sonnet-4.6` | Comma-separated judge models for ground-truth scoring.                              |
 | `--judge-model`                       | unset                                              | Single-judge override.                                                                |
 | `--save-run-trace`                    | off                                                | Write structured trace rows.                                                          |
 | `--results-jsonl`                     | `results.jsonl`                                    | Results JSONL path, relative paths resolved under output dir.                         |
