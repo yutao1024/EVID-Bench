@@ -25,7 +25,7 @@
 
 ## 🔥 News
 
-**[2026/06/02]** 📄 Paper is available on [arXiv:2606.04098](https://arxiv.org/abs/2606.04098).
+**[2026/06/02]** 📄 Paper is available on [ArXiv](https://arxiv.org/abs/2606.04098).
 
 **[2026/06/02]** 🤗 EVID-Bench dataset is now available on Hugging Face! Explore the [Dataset](https://huggingface.co/datasets/Kirito-Lab/EVID-Bench/).
 
