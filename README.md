@@ -29,8 +29,6 @@
 
 **[2026/06/02]** 🤗 EVID-Bench dataset is now available on Hugging Face! Explore the [Dataset](https://huggingface.co/datasets/Kirito-Lab/EVID-Bench/).
 
-**[2026/06/02]** 🚀 EVID-Bench code is released on [GitHub](https://github.com/yutao1024/EVID-Bench).
-
 
 ## 🌈 Overview
 
