@@ -25,7 +25,7 @@
 
 ## 🔥 News
 
-**[2026/08/21]** EVID-Bench has been accepted to EMNLP 2026 Findings!
+**[2026/08/21]** **EVID-Bench has been accepted to EMNLP 2026 Findings!**
 
 **[2026/06/02]** 📄 Paper is available on [ArXiv](https://arxiv.org/abs/2606.04098).
 
